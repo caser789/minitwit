@@ -3,7 +3,7 @@ from flask import Flask, _app_ctx_stack
 from flask import redirect, url_for, flash, render_template
 from flask import request, session, g
 from sqlite3 import dbapi2 as sqlite3
-from werkzeug import generate_password_hash
+from werkzeug import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.config.update(dict(
@@ -30,6 +30,11 @@ def init_db():
         db.cursor().executescript(f.read())
     db.commit()
 
+@app.cli.command('initdb')
+def initdb_command():
+    """Create the database tables"""
+    init_db()
+    print "Initialized the database"
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -54,7 +59,7 @@ def register():
                     [
                         request.form['username'],
                         request.form['email'], 
-                        generate_password_hash(request.form['password'])
+                        generate_password_hash(str(request.form['password']))
                     ])
             db.commit()
             flash('You were successfully registered and can login now')
@@ -96,7 +101,7 @@ def login():
         if user is None:
             error = 'Invalid username'
         elif not check_password_hash(user['user_id'],
-                request.form['password']):
+                str(request.form['password'])):
             error = 'Invalid password'
         else:
             flash('You were logged in')
@@ -114,6 +119,20 @@ def public_timeline():
     order by message.pub_date desc limit ?
             """, [app.config['PER_PAGE']])
     return render_template(template, messages=messages)
+
+def format_datetime(timestamp):
+    """Format a timestamp for display"""
+    return datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d @ %H:%M")
+
+def gravatar_url(email, size=80):
+    """Return the gravatar image for the given email address"""
+    return "http://www.gravatar.com/avatar/%s?d=identicon&s=%d" % \
+            (md5(email.strip().lower().encode('utf-8')).hexdigest(), size)
+
+
+app.jinja_env.filters['datetimeformat'] = format_datetime
+app.jinja_env.filters['gravatar'] = gravatar_url
+
 
 if __name__ == '__main__':
     app.run(debug=True)
