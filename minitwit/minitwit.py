@@ -1,4 +1,7 @@
 import os
+import time
+from hashlib import md5
+from datetime import datetime
 from flask import Flask, _app_ctx_stack
 from flask import redirect, url_for, flash, render_template
 from flask import request, session, g
@@ -66,7 +69,7 @@ def register():
                     [
                         request.form['username'],
                         request.form['email'], 
-                        generate_password_hash(str(request.form['password']))
+                        generate_password_hash(request.form['password'])
                     ])
             db.commit()
             flash('You were successfully registered and can login now')
@@ -107,8 +110,8 @@ def login():
                         one=True)
         if user is None:
             error = 'Invalid username'
-        elif not check_password_hash(user['user_id'],
-                str(request.form['password'])):
+        elif not check_password_hash(user['pw_hash'],
+                request.form['password']):
             error = 'Invalid password'
         else:
             flash('You were logged in')
@@ -233,7 +236,9 @@ def timeline():
     where who_id = ?))
     order by message.pub_date desc limit ?
             """,
-            [session['user_id'], session['user_id'], PER_PAGE])
+            [session['user_id'],
+                session['user_id'],
+                app.config['PER_PAGE']])
     return render_template(template, messages=messages)
 
 @app.route('/logout')
