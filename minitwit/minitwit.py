@@ -1,8 +1,9 @@
 import os
 from flask import Flask, _app_ctx_stack
-from flask import redirect, url_for
+from flask import redirect, url_for, flash, render_template
 from flask import request, session, g
 from sqlite3 import dbapi2 as sqlite3
+from werkzeug import generate_password_hash
 
 app = Flask(__name__)
 app.config.update(dict(
@@ -81,6 +82,27 @@ def query_db(query, args=(), one=False):
     rv = cur.fetchall()
     return (rv[0] if rv else None) if one else rv
 
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Logs the user in"""
+    if g.user:
+        return redirect(url_for('timeline'))
+    error = None
+    if request.method == 'POST':
+        user = query_db('''select * from user where username = ?''',
+                        [request.form['username']],
+                        one=True)
+        if user is None:
+            error = 'Invalid username'
+        elif not check_password_hash(user['user_id'],
+                request.form['password']):
+            error = 'Invalid password'
+        else:
+            flash('You were logged in')
+            session['user_id'] = user['user_id']
+            return redirect(url_for('timeline'))
+    return render_template('login.html', error=error)
 
 if __name__ == '__main__':
     app.run(debug=True)
