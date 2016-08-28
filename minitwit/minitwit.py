@@ -1,7 +1,7 @@
 import os
 from flask import Flask, _app_ctx_stack
-from flask import redirect, url_for, g
-from flask import request
+from flask import redirect, url_for
+from flask import request, session, g
 from sqlite3 import dbapi2 as sqlite3
 
 app = Flask(__name__)
@@ -61,8 +61,12 @@ def register():
     return render_template('register.html', error=error)
 
 
-
-
+@app.before_request
+def before_request():
+    g.user = None
+    if 'user_id' in session:
+        g.user = query_db('select * from user where user_id = ?', 
+                          [session['user_id']], one=True)
 
 
 if __name__ == '__main__':
