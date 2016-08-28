@@ -104,5 +104,16 @@ def login():
             return redirect(url_for('timeline'))
     return render_template('login.html', error=error)
 
+@app.route('/public')
+def public_timeline():
+    """Displays the latest messages for all users"""
+    template = 'timeline.html'
+    messages = query_db("""
+    select message.*, user.* from message, user
+    where message.author_id = user.user_id
+    order by message.pub_date desc limit ?
+            """, [app.config['PER_PAGE']])
+    return render_template(template, messages=messages)
+
 if __name__ == '__main__':
     app.run(debug=True)
