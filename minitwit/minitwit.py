@@ -23,6 +23,13 @@ def get_db():
         top.sqlite_db.row_factory = sqlite3.Row
     return top.sqlite_db
 
+@app.teardown_appcontext
+def close_database(exception):
+    """close the database again at the end of the request"""
+    top = _app_ctx_stack.top
+    if hasattr(top, 'sqlite_db'):
+        top.sqlite_db.close()
+
 def init_db():
     """initialize the db"""
     db = get_db()
@@ -129,6 +136,25 @@ def gravatar_url(email, size=80):
     return "http://www.gravatar.com/avatar/%s?d=identicon&s=%d" % \
             (md5(email.strip().lower().encode('utf-8')).hexdigest(), size)
 
+@app.route('/')
+def timeline():
+    """Shows a users timeline of if no user is logged in it will
+    redirect to the public timeline. This timeline shows the user's
+    messages as well as the messages of followed users.
+    """
+    if not g.user:
+        return redirect(url_for('public_timeline'))
+    template = 'timeline.html'
+    messages = query_db("""
+    select message.*, user.* from message, user
+    where message.author_id = user.user_id and (
+    user.user_id = ? or
+    user.user_id in (select whom_id from follower 
+    where who_id = ?))
+    order by message.pub_date desc limit ?
+            """,
+            [session['user_id'], session['user_id'], PER_PAGE])
+    return render_template(template, messages=messages)
 
 app.jinja_env.filters['datetimeformat'] = format_datetime
 app.jinja_env.filters['gravatar'] = gravatar_url
