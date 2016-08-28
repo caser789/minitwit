@@ -75,6 +75,12 @@ def get_user_id(username):
                   [username], one=True)
     return rv[0] if rv else None
 
+def query_db(query, args=(), one=False):
+    """Queries the db and return a list of dict"""
+    cur = get_db().execute(query, args)
+    rv = cur.fetchall()
+    return (rv[0] if rv else None) if one else rv
+
 
 if __name__ == '__main__':
     app.run(debug=True)
