@@ -199,6 +199,23 @@ def gravatar_url(email, size=80):
     return "http://www.gravatar.com/avatar/%s?d=identicon&s=%d" % \
             (md5(email.strip().lower().encode('utf-8')).hexdigest(), size)
 
+@app.route('/add_message', methods=['GET', 'POST'])
+def add_message():
+    """Register a new message for a user"""
+    if 'user_id' not in session:
+        abort(401)
+    if request.form['text']:
+        db = get_db()
+        db.execute("""
+        insert into message (author_id, text, pub_date)
+        values (?,?,?) 
+                """,
+                [session['user_id'], request.form['text'],
+                    int(time.time())])
+        db.commit()
+        flash("Your message was recorded")
+    return redirect(url_for('timeline'))
+
 @app.route('/')
 def timeline():
     """Shows a users timeline of if no user is logged in it will
