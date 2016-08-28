@@ -69,5 +69,12 @@ def before_request():
                           [session['user_id']], one=True)
 
 
+def get_user_id(username):
+    """convenience method to lookup the id for a username"""
+    rv = query_db('select user_id from user where username = ?',
+                  [username], one=True)
+    return rv[0] if rv else None
+
+
 if __name__ == '__main__':
     app.run(debug=True)
