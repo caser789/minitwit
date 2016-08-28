@@ -236,6 +236,13 @@ def timeline():
             [session['user_id'], session['user_id'], PER_PAGE])
     return render_template(template, messages=messages)
 
+@app.route('/logout')
+def logout():
+    """Logs the user out"""
+    flash("You were logged out")
+    session.pop('user_id', None)
+    return redirect(url_for('public_timeline'))
+
 app.jinja_env.filters['datetimeformat'] = format_datetime
 app.jinja_env.filters['gravatar'] = gravatar_url
 
