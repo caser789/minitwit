@@ -127,6 +127,69 @@ def public_timeline():
             """, [app.config['PER_PAGE']])
     return render_template(template, messages=messages)
 
+@app.route('/<username>')
+def user_timeline(username):
+    """Display a user's tweets"""
+    profile_user = query_db("""
+    select * from user where username = ?
+            """,
+            [username],
+            one=True)
+    if profile_user is None:
+        abort(404)
+    followed = False
+    if g.user:
+        followed = query_db("""
+        select 1 from follower where 
+        follower.who_id = ? and follower.whom_id = ?
+                """,
+                [session['user_id'], profile_user['user_id']],
+                one=True) is not None
+    template = 'timeline.html'
+    messages = query_db("""
+    select message.*, user.* from message, user where
+    user.user_id = message.author_id and user.user_id = ?
+    order by message.pub_date desc limit ?
+            """,
+            [profile_user['user_id'], app.config['PER_PAGE']])
+    return render_template(template, messages=messages, followed=followed,
+            profile_user=profile_user)
+
+@app.route('/<username>/follow')
+def follow_user(username):
+    """Adds the current user as follower of the given user"""
+    if not g.user:
+        abort(401)
+    whom_id = get_user_id(username)
+    if whom_id is None:
+        abort(404)
+    db = get_db()
+    db.execute("""
+    insert into follower (who_id, whom_id) values (?, ?)
+            """,
+            [session['user_id'], whom_id])
+    db.commit()
+    flash("You are now following '%s'" % username)
+    return redirect(url_for('user_timeline', username=username))
+
+@app.route('/<username>/unfollow')
+def unfollow_user(username):
+    """Remove the current user as follower of the given user"""
+    if not g.user:
+        abort(401)
+    whom_id = get_user_id(username)
+    if whom_id is None:
+        abort(404)
+    db = get_db()
+    db.execute("""
+    delete from follower where who_id = ? and whom_id = ?
+            """,
+            [session['user_id'], whom_id])
+    db.commit()
+    flash("You are no longer following '%s'" % username)
+    return redirect(url_for('user_timeline', username=username))
+
+
 def format_datetime(timestamp):
     """Format a timestamp for display"""
     return datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d @ %H:%M")
